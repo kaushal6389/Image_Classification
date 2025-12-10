@@ -32,6 +32,9 @@ MODEL_PATH = os.path.join(SCRIPT_DIR, 'saved_models', 'final_model_98plus.keras'
 IMG_SIZE = 384
 CLASS_NAMES = ['garbage', 'open_manhole', 'potholes', 'road_normal', 'streetlight_bad', 'streetlight_good']
 
+# Google Drive model file ID
+GDRIVE_FILE_ID = "1cHjSWFGvkb1E6g4EKZzRNdSGUXqPCszi"
+
 # Class descriptions for dashboard
 CLASS_DESCRIPTIONS = {
     'garbage': 'Garbage/litter on street',
@@ -51,6 +54,28 @@ CLASS_PRIORITY = {
     'streetlight_good': 'LOW',
     'road_normal': 'LOW'
 }
+
+# =============================================================================
+# DOWNLOAD MODEL FROM GOOGLE DRIVE IF NOT EXISTS
+# =============================================================================
+if not os.path.exists(MODEL_PATH):
+    logger.info("📥 Model not found locally. Downloading from Google Drive...")
+    try:
+        import gdown
+        
+        # Create directory if not exists
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        
+        # Download from Google Drive
+        url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
+        logger.info(f"📦 Downloading model (~760 MB)...")
+        gdown.download(url, MODEL_PATH, quiet=False)
+        logger.info("✅ Model downloaded successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Error downloading model: {e}")
+        logger.error("Please check Google Drive link and ensure file is publicly accessible")
+        raise
 
 # =============================================================================
 # LOAD MODEL

@@ -4,4 +4,5 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 pillow==10.1.0
 tensorflow==2.16.1
-numpy==1.26.2
+numpy==1.26.3
+gdown==4.7.1
