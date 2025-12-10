@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Model Files (Large files - don't push to GitHub)
+saved_models/*.keras
+saved_models/*.h5
+*.keras
+*.h5
+
+# Data (Don't push dataset)
+data/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+
+# Training outputs
+*.npy
+training_summary.txt
+confusion_matrix.png
+final_confusion_matrix.png
+training_history.png
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Test files
+test_output/
+uploads/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
