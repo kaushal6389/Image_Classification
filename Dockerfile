@@ -16,11 +16,11 @@ RUN pip install --no-cache-dir -r requirements_api.txt
 # Copy application files
 COPY api.py .
 
-# Create saved_models directory (model will be downloaded from Google Drive on startup)
+# Create saved_models directory for local testing
 RUN mkdir -p saved_models
 
-# Expose port (Railway will set PORT env variable)
+# Expose port
 EXPOSE 8000
 
-# Run the application (api.py handles PORT env variable)
+# Run the application
 CMD ["python", "api.py"]

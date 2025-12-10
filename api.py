@@ -27,13 +27,22 @@ tf.get_logger().setLevel('ERROR')
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(SCRIPT_DIR, 'saved_models', 'final_model_98plus.keras')
+
+# Railway Volume path (will be mounted at /data)
+VOLUME_PATH = os.getenv("VOLUME_PATH", "/data")
+MODEL_FILENAME = "final_model_98plus.keras"
+
+# Try Railway volume first, fallback to local
+if os.path.exists(os.path.join(VOLUME_PATH, MODEL_FILENAME)):
+    MODEL_PATH = os.path.join(VOLUME_PATH, MODEL_FILENAME)
+    logger.info(f"📂 Using model from Railway volume: {MODEL_PATH}")
+else:
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    MODEL_PATH = os.path.join(SCRIPT_DIR, 'saved_models', MODEL_FILENAME)
+    logger.info(f"📂 Using local model path: {MODEL_PATH}")
+
 IMG_SIZE = 384
 CLASS_NAMES = ['garbage', 'open_manhole', 'potholes', 'road_normal', 'streetlight_bad', 'streetlight_good']
-
-# Google Drive model file ID
-GDRIVE_FILE_ID = "1cHjSWFGvkb1E6g4EKZzRNdSGUXqPCszi"
 
 # Class descriptions for dashboard
 CLASS_DESCRIPTIONS = {
@@ -56,48 +65,44 @@ CLASS_PRIORITY = {
 }
 
 # =============================================================================
-# DOWNLOAD MODEL FROM GOOGLE DRIVE IF NOT EXISTS
+# CHECK MODEL AVAILABILITY
 # =============================================================================
 if not os.path.exists(MODEL_PATH):
-    logger.info("📥 Model not found locally. Downloading from Google Drive...")
+    error_msg = f"""
+    ❌ MODEL NOT FOUND!
+    
+    Expected location: {MODEL_PATH}
+    
+    📋 SETUP INSTRUCTIONS:
+    1. Create Railway Volume:
+       - railway volume add
+       - Name: model-storage
+       - Mount path: /data
+    
+    2. Upload model file to volume:
+       - Use Railway dashboard to upload
+       - File: saved_models/final_model_98plus.keras (1.3GB)
+    
+    3. Redeploy the service
+    
+    For local testing, place model in: ./saved_models/final_model_98plus.keras
+    """
+    logger.error(error_msg)
+    # Don't raise error - let API start for health checks
+    model = None
+else:
     try:
-        import gdown
+        logger.info(f"📥 Loading model from: {MODEL_PATH}")
+        file_size_mb = os.path.getsize(MODEL_PATH) / (1024 * 1024)
+        logger.info(f"📦 Model file size: {file_size_mb:.1f} MB")
         
-        # Create directory if not exists
-        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-        
-        # Download from Google Drive with fuzzy mode for large files
-        url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
-        logger.info(f"📦 Downloading model (~760 MB)...")
-        logger.info(f"📍 URL: {url}")
-        
-        # Use fuzzy=True for large files that require confirmation
-        gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
-        
-        # Verify file was downloaded
-        if os.path.exists(MODEL_PATH):
-            file_size_mb = os.path.getsize(MODEL_PATH) / (1024 * 1024)
-            logger.info(f"✅ Model downloaded successfully! Size: {file_size_mb:.1f} MB")
-        else:
-            raise FileNotFoundError("Model file was not created after download")
-        
+        model = keras.models.load_model(MODEL_PATH)
+        logger.info(f"✅ Model loaded successfully!")
+        logger.info(f"   Parameters: {model.count_params():,}")
+        logger.info(f"   Input shape: {model.input_shape}")
     except Exception as e:
-        logger.error(f"❌ Error downloading model: {e}")
-        logger.error("⚠️ IMPORTANT: Please ensure Google Drive file permission is set to 'Anyone with the link'")
-        logger.error(f"⚠️ Check file at: https://drive.google.com/file/d/{GDRIVE_FILE_ID}/view")
-        raise
-
-# =============================================================================
-# LOAD MODEL
-# =============================================================================
-logger.info("Loading ML model...")
-try:
-    model = keras.models.load_model(MODEL_PATH)
-    model_size = os.path.getsize(MODEL_PATH) / (1024*1024)
-    logger.info(f"✅ Model loaded: {model_size:.1f} MB, Params: {model.count_params():,}")
-except Exception as e:
-    logger.error(f"❌ Error loading model: {e}")
-    raise
+        logger.error(f"❌ Error loading model: {e}")
+        model = None
 
 # =============================================================================
 # FASTAPI APP
@@ -191,9 +196,27 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    model_info = {}
+    if model is not None:
+        try:
+            model_size_mb = os.path.getsize(MODEL_PATH) / (1024 * 1024)
+            model_info = {
+                "loaded": True,
+                "path": MODEL_PATH,
+                "size_mb": round(model_size_mb, 1),
+                "parameters": model.count_params()
+            }
+        except:
+            model_info = {"loaded": True, "details": "available"}
+    else:
+        model_info = {
+            "loaded": False,
+            "message": "Model not found. Please upload model to Railway volume at /data/final_model_98plus.keras"
+        }
+    
     return {
         "status": "healthy",
-        "model_loaded": model is not None,
+        "model": model_info,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -227,6 +250,13 @@ async def predict(
     Returns:
         JSON with prediction results
     """
+    # Check if model is loaded
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded. Please upload model to Railway volume at /data/final_model_98plus.keras"
+        )
+    
     # Validate file type
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="File must be an image")
@@ -277,6 +307,13 @@ async def predict_batch(files: list[UploadFile] = File(...)):
     Returns:
         JSON with results for all images
     """
+    # Check if model is loaded
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded. Please upload model to Railway volume at /data/final_model_98plus.keras"
+        )
+    
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Maximum 10 images allowed per batch")
     
