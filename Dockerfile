@@ -19,8 +19,8 @@ COPY api.py .
 # Create saved_models directory (model will be downloaded from Google Drive on startup)
 RUN mkdir -p saved_models
 
-# Expose port
+# Expose port (Railway will set PORT env variable)
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application (api.py handles PORT env variable)
+CMD ["python", "api.py"]
