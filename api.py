@@ -66,15 +66,25 @@ if not os.path.exists(MODEL_PATH):
         # Create directory if not exists
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         
-        # Download from Google Drive
+        # Download from Google Drive with fuzzy mode for large files
         url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
         logger.info(f"📦 Downloading model (~760 MB)...")
-        gdown.download(url, MODEL_PATH, quiet=False)
-        logger.info("✅ Model downloaded successfully!")
+        logger.info(f"📍 URL: {url}")
+        
+        # Use fuzzy=True for large files that require confirmation
+        gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+        
+        # Verify file was downloaded
+        if os.path.exists(MODEL_PATH):
+            file_size_mb = os.path.getsize(MODEL_PATH) / (1024 * 1024)
+            logger.info(f"✅ Model downloaded successfully! Size: {file_size_mb:.1f} MB")
+        else:
+            raise FileNotFoundError("Model file was not created after download")
         
     except Exception as e:
         logger.error(f"❌ Error downloading model: {e}")
-        logger.error("Please check Google Drive link and ensure file is publicly accessible")
+        logger.error("⚠️ IMPORTANT: Please ensure Google Drive file permission is set to 'Anyone with the link'")
+        logger.error(f"⚠️ Check file at: https://drive.google.com/file/d/{GDRIVE_FILE_ID}/view")
         raise
 
 # =============================================================================
