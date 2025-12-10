@@ -15,7 +15,9 @@ RUN pip install --no-cache-dir -r requirements_api.txt
 
 # Copy application files
 COPY api.py .
-COPY saved_models/final_model_98plus.keras ./saved_models/
+
+# Create saved_models directory (model will be downloaded from Google Drive on startup)
+RUN mkdir -p saved_models
 
 # Expose port
 EXPOSE 8000
